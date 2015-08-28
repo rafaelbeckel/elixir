@@ -21,8 +21,15 @@ var revReplace = require('gulp-rev-replace');
  |
  */
 
-Elixir.extend('version', function(src, buildPath) {
+Elixir.extend('version', function(src, buildPath, assets) {
+    // Allow users to use assets as the second argument
+    if(Array.isArray(buildPath)) {
+        assets = buildPath;
+        buildPath = null;
+    }
+
     var paths = prepGulpPaths(src, buildPath);
+    var assets = prepGulpPaths(assets, buildPath);
 
     new Elixir.Task('version', function() {
         var files = vinylPaths();
@@ -51,8 +58,11 @@ Elixir.extend('version', function(src, buildPath) {
                 // alongside the suffixed version.
                 del(files.paths, { force: true });
 
-                // We'll also copy over relevant sourcemap files.
+                // We'll copy over relevant sourcemap files.
                 copyMaps(paths.src.path, paths.output.baseDir);
+
+                // We'll also copy the assets if they exist.
+                copyFiles(assets.src.path, assets.output.baseDir);
             })
         );
     })
@@ -98,9 +108,8 @@ var emptyBuildPathFiles = function(buildPath, manifest) {
 /**
  * Copy source maps to the build directory.
  *
- * @param  {string} src
+ * @param  {array} src
  * @param  {string} buildPath
- * @return {object}
  */
 var copyMaps = function(src, buildPath) {
     src.forEach(function(file) {
@@ -120,13 +129,26 @@ var copyMaps = function(src, buildPath) {
                     }
                 });
 
-                // And then we'll loop over this mapping array
-                // and copy each over to the build directory.
-                mappings.forEach(function(mapping) {
-                    var map = mapping.replace(publicPath, buildPath);
-                    gulp.src(mapping).pipe(gulp.dest(parsePath(map).dirname));
-                });
+                // And then we'll copy each .map
+                // file to the build directory.
+                copyFiles(mappings, buildPath);
             }
         });
     });
 };
+
+/**
+ * Copy files from public path to build path.
+ *
+ * @param  {array} files
+ * @param  {string} buildPath
+ */
+var copyFiles = function(files, buildPath) {
+
+    // Copy each file to the build directory.
+    files.forEach(function(file) {
+        var dest = file.replace(publicPath, buildPath);
+        gulp.src(file).pipe(gulp.dest(parsePath(dest).dirname));
+    });
+
+}
