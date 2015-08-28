@@ -62,7 +62,7 @@ Elixir.extend('version', function(src, buildPath, assets) {
                 copyMaps(paths.src.path, paths.output.baseDir);
 
                 // We'll also copy the assets if they exist.
-                copyFiles(assets.src.path, assets.output.baseDir);
+                copyAssets(assets.src.path, assets.output.baseDir);
             })
         );
     })
@@ -112,30 +112,63 @@ var emptyBuildPathFiles = function(buildPath, manifest) {
  * @param  {string} buildPath
  */
 var copyMaps = function(src, buildPath) {
-    src.forEach(function(file) {
-        // We'll first get any files from the src
-        // array that have companion .map files.
-        glob(file, {}, function(err, files) {
-            if (err === null) {
-                // Here we will store the mappings.
-                var mappings = [];
-
-                // Loop over each file found by glob
-                // and check if a map for that file exists.
-                files.forEach(function(file) {
-                    var map = file + '.map';
-                    if (fs.existsSync(map)) {
-                        mappings.push(map);
-                    }
-                });
-
-                // And then we'll copy each .map
-                // file to the build directory.
-                copyFiles(mappings, buildPath);
-            }
-        });
+    wildcard(src,function(files){
+        var mappings = getMapFiles(files);
+        copyFiles(mappings, buildPath);
     });
 };
+
+
+/**
+ * Copy user assets to the build directory.
+ *
+ * @param  {array} src
+ * @param  {string} buildPath
+ */
+var copyAssets = function(src, buildPath) {
+    wildcard(src,function(files){
+        copyFiles(files, buildPath);
+    });
+};
+
+
+/**
+ * Extract file listing from an array
+ * containing wildcard strings.
+ *
+ * @param  {array} src
+ * @return ({array})
+ */
+var wildcard = function(src,callback) {
+    src.forEach(function(file) {
+        glob(file, {}, function(err, files) {
+            var listing = (err === null) ? files : [];
+            callback(listing);
+        });
+    });
+}
+
+
+/**
+ * Loop over each file and returns a
+ * list of corresponding .map files.
+ *
+ * @param  {array} files
+ * @return {array}
+ */
+var getMapFiles = function(files) {
+    var mappings = [];
+
+    files.forEach(function(file) {
+        var map = file + '.map';
+        if (fs.existsSync(map)) {
+            mappings.push(map);
+        }
+    });
+
+    return mappings;
+}
+
 
 /**
  * Copy files from public path to build path.
