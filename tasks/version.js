@@ -22,12 +22,6 @@ var revReplace = require('gulp-rev-replace');
  */
 
 Elixir.extend('version', function(src, buildPath, assets) {
-    // Allow users to use assets as the second argument
-    if(Array.isArray(buildPath)) {
-        assets = buildPath;
-        buildPath = null;
-    }
-
     var paths = prepGulpPaths(src, buildPath);
     var assets = prepGulpPaths(assets, buildPath);
 
@@ -112,9 +106,16 @@ var emptyBuildPathFiles = function(buildPath, manifest) {
  * @param  {string} buildPath
  */
 var copyMaps = function(src, buildPath) {
-    wildcard(src,function(files){
-        var mappings = getMapFiles(files);
-        copyFiles(mappings, buildPath);
+    getFiles(src,function(files){
+        var maps = files
+                    .map(function(file) {
+                        return file + '.map';
+                    })
+                    .filter(function(file) {
+                        return fs.existsSync(file);
+                    });
+
+        copyFiles(maps, buildPath);
     });
 };
 
@@ -126,47 +127,26 @@ var copyMaps = function(src, buildPath) {
  * @param  {string} buildPath
  */
 var copyAssets = function(src, buildPath) {
-    wildcard(src,function(files){
+    getFiles(src,function(files){
         copyFiles(files, buildPath);
     });
 };
 
 
 /**
- * Extract file listing from an array
- * containing wildcard strings.
+ * Extract the file listing from an array that may
+ * contain files, directories and wildcard strings
  *
  * @param  {array} src
  * @return ({array})
  */
-var wildcard = function(src,callback) {
+var getFiles = function(src,callback) {
     src.forEach(function(file) {
-        glob(file, {}, function(err, files) {
-            var listing = (err === null) ? files : [];
-            callback(listing);
+        glob(file, {}, function(error, files) {
+            if (error) return;
+            callback(files);
         });
     });
-}
-
-
-/**
- * Loop over each file and returns a
- * list of corresponding .map files.
- *
- * @param  {array} files
- * @return {array}
- */
-var getMapFiles = function(files) {
-    var mappings = [];
-
-    files.forEach(function(file) {
-        var map = file + '.map';
-        if (fs.existsSync(map)) {
-            mappings.push(map);
-        }
-    });
-
-    return mappings;
 }
 
 
@@ -177,11 +157,8 @@ var getMapFiles = function(files) {
  * @param  {string} buildPath
  */
 var copyFiles = function(files, buildPath) {
-
-    // Copy each file to the build directory.
     files.forEach(function(file) {
         var dest = file.replace(publicPath, buildPath);
         gulp.src(file).pipe(gulp.dest(parsePath(dest).dirname));
     });
-
 }
